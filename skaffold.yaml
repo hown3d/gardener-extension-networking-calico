@@ -3,8 +3,10 @@ kind: Config
 metadata:
   name: gardener-extension-networking-calico
 build:
+  local:
+    useBuildkit: true
   insecureRegistries:
-    - garden.local.gardener.cloud:5001
+    - registry.local.gardener.cloud:5001
   artifacts:
     - image: gardener-project/public/gardener/extensions/networking-calico
       docker: 
