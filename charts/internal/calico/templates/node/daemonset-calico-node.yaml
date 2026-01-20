@@ -39,9 +39,13 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
       hostNetwork: true
-      # we need to resolve the goldmane service dns, therefore try to resolve using kube-dns first
-      # By default if running in hostNetwork, the pod does not use kube-dns entries to resolve records
-      dnsPolicy: ClusterFirstWithHostNet
+      # we need to resolve the goldmane service dns, but kube-dns service might not yet be available.
+      hostAliases:
+        - ip: {{ .Values.config.goldmane.serviceIP }}
+          hostnames:
+            - goldmane.kube-system.svc
+            - goldmane.kube-system
+            - goldmane
       tolerations:
         # Make sure calico-node gets scheduled on all nodes.
         - effect: NoSchedule

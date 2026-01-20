@@ -5,6 +5,8 @@ global:
   snatToUpstreamDNSEnabled: ""
   vxlanEnabled: ""
 config:
+  goldmane:
+    serviceIP: ""
   veth_mtu: 1440
   backend: bird
   cniVersion: 0.3.1

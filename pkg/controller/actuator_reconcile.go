@@ -5,8 +5,8 @@
 package controller
 
 import (
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"slices"
@@ -19,6 +19,7 @@ import (
 	gardencorev1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/apis/extensions/validation"
+	"github.com/gardener/gardener/pkg/client/kubernetes"
 	gardenerkubernetes "github.com/gardener/gardener/pkg/client/kubernetes"
 	"github.com/gardener/gardener/pkg/utils/chart"
 	"github.com/gardener/gardener/pkg/utils/managedresources"
@@ -27,13 +28,10 @@ import (
 	monitoringv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/clock"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/gardener/gardener-extension-networking-calico/charts"
 	calicov1alpha1 "github.com/gardener/gardener-extension-networking-calico/pkg/apis/calico/v1alpha1"
@@ -46,7 +44,8 @@ import (
 
 const (
 	// CalicoConfigManagedResourceName is the name of the managed resource of networking calico
-	CalicoConfigManagedResourceName = "extension-networking-calico-config"
+	CalicoConfigManagedResourceName   = "extension-networking-calico-config"
+	CalicoOperatorManagedResourceName = "extension-networking-calico-operator"
 )
 
 func applyMonitoringConfig(ctx context.Context, seedClient client.Client, chartApplier gardenerkubernetes.ChartApplier, network *extensionsv1alpha1.Network, deleteChart bool) error {
@@ -200,11 +199,11 @@ func (a *actuator) Reconcile(ctx context.Context, l logr.Logger, network *extens
 		podCIDRs = cluster.Shoot.Status.Networking.Pods
 	}
 
-	_, c, err := util.NewClientForShoot(ctx, a.client, network.Namespace, client.Options{}, extensionsconfig.RESTOptions{})
+	_, shootClient, err := util.NewClientForShoot(ctx, a.client, network.Namespace, client.Options{}, extensionsconfig.RESTOptions{})
 	if err != nil {
 		return fmt.Errorf("could not create shoot client for shoot '%s': %w", network.Namespace, err)
 	}
-	sm, err := manager.New(ctx, l, clock.RealClock{}, c, metav1.NamespaceSystem, calico.Name, manager.Config{})
+	sm, err := manager.New(ctx, l, clock.RealClock{}, shootClient, metav1.NamespaceSystem, calico.Name, manager.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -222,6 +221,26 @@ func (a *actuator) Reconcile(ctx context.Context, l logr.Logger, network *extens
 		return err
 	}
 
+	operatorResources, err := resources.Resources(ctx, cm, trustBundle)
+	if err != nil {
+		return fmt.Errorf("generating calico operator resources: %w", err)
+	}
+
+	registry := managedresources.NewRegistry(kubernetes.GardenScheme, kubernetes.GardenCodec, kubernetes.GardenSerializer)
+	operatorRaw, err := registry.AddAllAndSerialize(operatorResources...)
+	if err != nil {
+		return err
+	}
+
+	if err := managedresources.CreateForShoot(ctx, a.client, network.Namespace, CalicoOperatorManagedResourceName, "extension-networking-calico", false, operatorRaw); err != nil {
+		return err
+	}
+
+	goldmaneIP, err := goldmaneServiceIP(ctx, shootClient)
+	if err != nil {
+		return fmt.Errorf("getting goldmane IP: %w", err)
+	}
+
 	calicoChart, err := chartspkg.RenderCalicoChart(
 		chartRenderer,
 		network,
@@ -235,21 +254,16 @@ func (a *actuator) Reconcile(ctx context.Context, l logr.Logger, network *extens
 		ipFamilies,
 		typhaKey.GetName(),
 		nodeKey.GetName(),
+		goldmaneIP,
 	)
 	if err != nil {
 		return err
 	}
 
-	operatorResources, err := resources.Resources(ctx, cm, trustBundle)
-	if err != nil {
-		return fmt.Errorf("generating calico operator resources: %w", err)
-	}
-	operatorBytes, err := serializeObjects(c.Scheme(), operatorResources)
-	if err != nil {
-		return fmt.Errorf("serialzing operator resources: %w", err)
+	data := map[string][]byte{
+		chartspkg.CalicoConfigKey: calicoChart,
 	}
 
-	data := map[string][]byte{chartspkg.CalicoConfigKey: calicoChart, "operator-resources": operatorBytes}
 	if err := managedresources.CreateForShoot(ctx, a.client, network.Namespace, CalicoConfigManagedResourceName, "extension-networking-calico", false, data); err != nil {
 		return err
 	}
@@ -310,25 +324,19 @@ func updateAutoDetectionMode(nodes []string) string {
 	return ""
 }
 
-func serializeObjects(scheme *runtime.Scheme, objs []client.Object) ([]byte, error) {
-	var data []byte
-	codec := serializer.NewCodecFactory(scheme)
-	si, ok := runtime.SerializerInfoForMediaType(codec.SupportedMediaTypes(), runtime.ContentTypeJSON)
-	if !ok {
-		return nil, fmt.Errorf("could not find encoder for media type %q", runtime.ContentTypeJSON)
+func goldmaneServiceIP(ctx context.Context, c client.Client) (string, error) {
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "goldmane",
+			Namespace: metav1.NamespaceSystem,
+		},
 	}
-	for _, obj := range objs {
-		gvk, err := apiutil.GVKForObject(obj, scheme)
-		if err != nil {
-			return nil, fmt.Errorf("could not get gvk for %q of type %T: %w", obj.GetName(), obj, err)
-		}
-		encoder := codec.EncoderForVersion(si.Serializer, gvk.GroupVersion())
-		buffer := bytes.Buffer{}
-		if err := encoder.Encode(obj, &buffer); err != nil {
-			return nil, fmt.Errorf("could not encode object %q of type %T: %w", obj.GetName(), obj, err)
-		}
-		data = append(data, []byte("\n---\n")...)
-		data = append(data, buffer.Bytes()...)
+	if err := c.Get(ctx, client.ObjectKeyFromObject(svc), svc); err != nil {
+		return "", err
 	}
-	return data, nil
+	clusterIP := svc.Spec.ClusterIP
+	if clusterIP == "" {
+		return "", errors.New("empty clusterIP")
+	}
+	return clusterIP, nil
 }

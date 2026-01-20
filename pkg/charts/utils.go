@@ -38,6 +38,11 @@ type calicoConfig struct {
 	NonPrivileged   bool                   `json:"nonPrivileged"`
 	BirdExporter    birdExporter           `json:"birdExporter"`
 	Multus          multus                 `json:"multus"`
+	Goldmane        goldmane               `json:"goldmane"`
+}
+
+type goldmane struct {
+	ServiceIP string `json:"serviceIP"`
 }
 
 type felix struct {
@@ -190,11 +195,13 @@ func ComputeCalicoChartValues(
 	ipFamilies []extensionsv1alpha1.IPFamily,
 	typhaCertSecretName string,
 	nodeCertSecretName string,
+	goldmaneServiceIP string,
 ) (map[string]interface{}, error) {
 	typedConfig, err := generateChartValues(network, config, kubeProxyEnabled, nonPrivileged, ipFamilies, typhaCertSecretName, nodeCertSecretName)
 	if err != nil {
 		return nil, fmt.Errorf("error when generating calico config: %v", err)
 	}
+	typedConfig.Goldmane.ServiceIP = goldmaneServiceIP
 	calicoConfig, err := typedConfig.toMap()
 	if err != nil {
 		return nil, fmt.Errorf("could not convert calico config: %v", err)
