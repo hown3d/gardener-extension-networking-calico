@@ -38,7 +38,12 @@ type calicoConfig struct {
 	NonPrivileged   bool                   `json:"nonPrivileged"`
 	BirdExporter    birdExporter           `json:"birdExporter"`
 	Multus          multus                 `json:"multus"`
-	Goldmane        goldmane               `json:"goldmane"`
+	Observability   observability          `json:"observability"`
+}
+
+type observability struct {
+	Enabled  bool     `json:"enabled"`
+	Goldmane goldmane `json:"goldmane"`
 }
 
 type goldmane struct {
@@ -195,13 +200,12 @@ func ComputeCalicoChartValues(
 	ipFamilies []extensionsv1alpha1.IPFamily,
 	typhaCertSecretName string,
 	nodeCertSecretName string,
-	goldmaneServiceIP string,
+	goldmaneServiceIP *string,
 ) (map[string]interface{}, error) {
-	typedConfig, err := generateChartValues(network, config, kubeProxyEnabled, nonPrivileged, ipFamilies, typhaCertSecretName, nodeCertSecretName)
+	typedConfig, err := generateChartValues(network, config, kubeProxyEnabled, nonPrivileged, ipFamilies, typhaCertSecretName, nodeCertSecretName, goldmaneServiceIP)
 	if err != nil {
 		return nil, fmt.Errorf("error when generating calico config: %v", err)
 	}
-	typedConfig.Goldmane.ServiceIP = goldmaneServiceIP
 	calicoConfig, err := typedConfig.toMap()
 	if err != nil {
 		return nil, fmt.Errorf("could not convert calico config: %v", err)
@@ -275,6 +279,7 @@ func generateChartValues(network *extensionsv1alpha1.Network,
 	ipFamilies []extensionsv1alpha1.IPFamily,
 	typhaCertSecretName string,
 	nodeCertSecretName string,
+	goldmaneIP *string,
 ) (*calicoConfig, error) {
 	isIPv4 := slices.Contains(ipFamilies, extensionsv1alpha1.IPFamilyIPv4)
 	isIPv6 := slices.Contains(ipFamilies, extensionsv1alpha1.IPFamilyIPv6)
@@ -326,6 +331,10 @@ func generateChartValues(network *extensionsv1alpha1.Network,
 
 	// will be overridden to false if config.EbpfDataplane.Enabled==true
 	c.NonPrivileged = nonPrivileged
+
+	if goldmaneIP != nil {
+		c.Observability.Goldmane.ServiceIP = *goldmaneIP
+	}
 
 	return mergeCalicoValuesWithConfig(&c, config, isIPv4, isIPv6)
 }
@@ -465,6 +474,10 @@ func mergeCalicoValuesWithConfig(c *calicoConfig, config *calicov1alpha1.Network
 		if config.Multus.InstallCNIPlugins != nil {
 			c.Multus.InstallCNIPlugins = *config.Multus.InstallCNIPlugins
 		}
+	}
+
+	if config.Observability != nil {
+		c.Observability.Enabled = config.Observability.Enabled
 	}
 
 	return c, nil

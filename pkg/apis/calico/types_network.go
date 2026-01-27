@@ -121,6 +121,9 @@ type NetworkConfig struct {
 
 	// Multus configures Multus CNI.
 	Multus *Multus
+
+	// Observability configures calico observability tools like Goldmane and Whisker
+	Observability *Observability
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -218,4 +221,8 @@ type Multus struct {
 	Enabled bool
 	// InstallCNIPlugins enables the installation of containernetworking/plugins.
 	InstallCNIPlugins *bool
+}
+
+type Observability struct {
+	Enabled bool
 }

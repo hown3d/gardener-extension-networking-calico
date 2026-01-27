@@ -39,13 +39,15 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
       hostNetwork: true
+      {{- if .Values.config.observability.enabled }}
       # we need to resolve the goldmane service dns, but kube-dns service might not yet be available.
       hostAliases:
-        - ip: {{ .Values.config.goldmane.serviceIP }}
+        - ip: {{ required "Must set config.goldmane.serviceIP if observability is enabled" .Values.config.goldmane.serviceIP }}
           hostnames:
             - goldmane.kube-system.svc
             - goldmane.kube-system
             - goldmane
+      {{- end }}
       tolerations:
         # Make sure calico-node gets scheduled on all nodes.
         - effect: NoSchedule
@@ -334,10 +336,12 @@ spec:
               value: /node-certs/tls.key
             - name: FELIX_TYPHACN
               value: "typha-server"
+            {{- if .Values.config.observability.enabled }}
             - name: FELIX_FLOWLOGSGOLDMANESERVER
               value: goldmane.kube-system.svc:7443
             - name: FELIX_FLOWLOGSFLUSHINTERVAL
               value: "15"
+            {{- end }}
             # Wait for the datastore.
             - name: WAIT_FOR_DATASTORE
               value: "true"

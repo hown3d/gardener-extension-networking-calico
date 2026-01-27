@@ -30,7 +30,7 @@ func RenderCalicoChart(
 	ipFamilies []extensionsv1alpha1.IPFamily,
 	typhaCertSecretName string,
 	nodeCertSecretName string,
-	goldmaneServiceIP string,
+	goldmaneServiceIP *string,
 ) ([]byte, error) {
 	values, err := ComputeCalicoChartValues(network, config, kubernetesVersion, wantsVPA, kubeProxyEnabled, nonPrivileged, nodeCIDR, podCidrs, ipFamilies, typhaCertSecretName, nodeCertSecretName, goldmaneServiceIP)
 	if err != nil {

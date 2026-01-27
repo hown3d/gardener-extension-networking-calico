@@ -17,8 +17,10 @@ const (
 	VXLan Backend = "vxlan"
 )
 
-type PoolMode string
-type IPv4PoolMode = PoolMode
+type (
+	PoolMode     string
+	IPv4PoolMode = PoolMode
+)
 
 const (
 	Always      PoolMode = "Always"
@@ -29,8 +31,10 @@ const (
 
 type CIDR string
 
-type Pool string
-type IPv4Pool = Pool
+type (
+	Pool     string
+	IPv4Pool = Pool
+)
 
 const (
 	PoolIPIP  Pool = "ipip"
@@ -141,6 +145,9 @@ type NetworkConfig struct {
 
 	// Multus configures Multus CNI.
 	Multus *Multus `json:"multus,omitempty"`
+
+	// Observability configures calico observability tools like Goldmane and Whisker
+	Observability *Observability `json:"observability,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -244,4 +251,8 @@ type Multus struct {
 	// InstallCNIPlugins enables the installation of containernetworking/plugins.
 	// +optional
 	InstallCNIPlugins *bool `json:"installCNIPlugins,omitempty"`
+}
+
+type Observability struct {
+	Enabled bool `json:"enabled"`
 }

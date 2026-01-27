@@ -262,6 +262,19 @@ Multus
 <p>Multus configures Multus CNI.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>observability</code></br>
+<em>
+<a href="#calico.networking.extensions.gardener.cloud/v1alpha1.Observability">
+Observability
+</a>
+</em>
+</td>
+<td>
+<p>Observability configures calico observability tools like Goldmane and Whisker</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="calico.networking.extensions.gardener.cloud/v1alpha1.AutoScaling">AutoScaling
@@ -640,6 +653,34 @@ bool
 </tr>
 </thead>
 <tbody>
+</tbody>
+</table>
+<h3 id="calico.networking.extensions.gardener.cloud/v1alpha1.Observability">Observability
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#calico.networking.extensions.gardener.cloud/v1alpha1.NetworkConfig">NetworkConfig</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>enabled</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="calico.networking.extensions.gardener.cloud/v1alpha1.Overlay">Overlay

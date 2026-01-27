@@ -19,7 +19,6 @@ import (
 	gardencorev1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/apis/extensions/validation"
-	"github.com/gardener/gardener/pkg/client/kubernetes"
 	gardenerkubernetes "github.com/gardener/gardener/pkg/client/kubernetes"
 	"github.com/gardener/gardener/pkg/utils/chart"
 	"github.com/gardener/gardener/pkg/utils/managedresources"
@@ -221,13 +220,18 @@ func (a *actuator) Reconcile(ctx context.Context, l logr.Logger, network *extens
 		return err
 	}
 
-	operatorResources, err := resources.Resources(ctx, cm, trustBundle)
-	if err != nil {
-		return fmt.Errorf("generating calico operator resources: %w", err)
+	operatorObjs := []client.Object{trustBundle.ConfigMap(metav1.NamespaceSystem)}
+
+	if networkConfig.Observability != nil && networkConfig.Observability.Enabled {
+		objs, err := resources.ObservabilityResources(ctx, cm, trustBundle)
+		if err != nil {
+			return fmt.Errorf("generating calico observability resources: %w", err)
+		}
+		operatorObjs = append(operatorObjs, objs...)
 	}
 
-	registry := managedresources.NewRegistry(kubernetes.GardenScheme, kubernetes.GardenCodec, kubernetes.GardenSerializer)
-	operatorRaw, err := registry.AddAllAndSerialize(operatorResources...)
+	registry := managedresources.NewRegistry(gardenerkubernetes.GardenScheme, gardenerkubernetes.GardenCodec, gardenerkubernetes.GardenSerializer)
+	operatorRaw, err := registry.AddAllAndSerialize(operatorObjs...)
 	if err != nil {
 		return err
 	}
@@ -236,9 +240,13 @@ func (a *actuator) Reconcile(ctx context.Context, l logr.Logger, network *extens
 		return err
 	}
 
-	goldmaneIP, err := goldmaneServiceIP(ctx, shootClient)
-	if err != nil {
-		return fmt.Errorf("getting goldmane IP: %w", err)
+	var goldmaneIP *string
+	if networkConfig.Observability != nil && networkConfig.Observability.Enabled {
+		ip, err := goldmaneServiceIP(ctx, shootClient)
+		if err != nil {
+			return fmt.Errorf("getting goldmane IP: %w", err)
+		}
+		goldmaneIP = &ip
 	}
 
 	calicoChart, err := chartspkg.RenderCalicoChart(

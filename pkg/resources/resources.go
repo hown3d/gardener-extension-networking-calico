@@ -5,11 +5,10 @@ import (
 	"fmt"
 
 	"github.com/tigera/operator/pkg/tls/certificatemanagement"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Resources(ctx context.Context, cm *CertificateManager, trustBundle certificatemanagement.TrustedBundle) ([]client.Object, error) {
+func ObservabilityResources(ctx context.Context, cm *CertificateManager, trustBundle certificatemanagement.TrustedBundle) ([]client.Object, error) {
 	goldmaneKey, err := cm.KeyPair(context.Background(), "goldmane", "client")
 	if err != nil {
 		panic(err)
@@ -27,5 +26,5 @@ func Resources(ctx context.Context, cm *CertificateManager, trustBundle certific
 	if err != nil {
 		panic(err)
 	}
-	return append(append(whiskerObjs, goldmaneObjs...), trustBundle.ConfigMap(metav1.NamespaceSystem)), nil
+	return append(whiskerObjs, goldmaneObjs...), nil
 }
