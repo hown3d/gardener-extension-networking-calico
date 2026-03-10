@@ -427,6 +427,10 @@ spec:
             # Limit NAT port range: https://github.com/projectcalico/felix/pull/1838
             - name: FELIX_NATPORTRANGE
               value: "32768:65535"
+            {{- if .Values.config.felix.nftables.enabled }}
+            - name: FELIX_NFTABLESMODE
+              value: "Enabled"
+            {{- end }}
             {{- if eq .Values.global.snatToUpstreamDNSEnabled "true" }}
             - name: FELIX_CHAININSERTMODE
               value: "Append"
