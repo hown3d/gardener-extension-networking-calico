@@ -132,6 +132,9 @@ var defaultCalicoConfig = calicoConfig{
 		BPFKubeProxyIptablesCleanup: felixBPFKubeProxyIptablesCleanup{
 			Enabled: false,
 		},
+		NFTables: felixNFTables{
+			Enabled: false,
+		},
 	},
 	IPAM: ipam{
 		IPAMType:   calicov1alpha1.IPAMHostLocal,
@@ -301,13 +304,18 @@ func generateChartValues(network *extensionsv1alpha1.Network, config *calicov1al
 		)
 	}
 
-	if kubeProxyMode != nil {
-		if *kubeProxyMode == v1beta1.ProxyModeNFTables {
-			c.Felix.NFTables.Enabled = true
+	if kubeProxyEnabled == true {
+		if kubeProxyMode != nil {
+			if *kubeProxyMode == v1beta1.ProxyModeNFTables {
+				c.Felix.NFTables.Enabled = true
+			}
 		}
 	}
 
 	if !kubeProxyEnabled {
+		if kubeProxyMode != nil {
+			return nil, fmt.Errorf("kube-proxy mode must not be set if kube-proxy is disabled")
+		}
 		c.Felix.BPFKubeProxyIptablesCleanup.Enabled = true
 	}
 
