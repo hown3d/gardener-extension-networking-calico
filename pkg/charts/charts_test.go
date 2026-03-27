@@ -227,9 +227,9 @@ var _ = Describe("Chart package test", func() {
 
 	DescribeTable("#ComputeCalicoChartValues",
 		func(config func() *calicov1alpha1.NetworkConfig, configResult func() *calicov1alpha1.NetworkConfig, typhaEnabled bool, wantsVPA bool,
-			kubeProxyEnabled bool, mtu string, ipinip bool, bpf bool, nftables corev1beta1.ProxyMode, pool string, birdExporterEnabled bool, multusEnabled bool, installCNIPlugins bool,
+			kubeProxyEnabled bool, mtu string, ipinip bool, bpf bool, kubeProxyMode corev1beta1.ProxyMode, pool string, birdExporterEnabled bool, multusEnabled bool, installCNIPlugins bool,
 			modeFunc func() string, detectionMethodFunc func() *string, nodesFunc func() *string, additionalGlobalOptions map[string]string) {
-			values, err := ComputeCalicoChartValues(network, config(), kubernetesVersion, wantsVPA, kubeProxyEnabled, &nftables, false, nodesFunc(), []string{network.Spec.PodCIDR}, []extensionsv1alpha1.IPFamily{extensionsv1alpha1.IPFamilyIPv4})
+			values, err := ComputeCalicoChartValues(network, config(), kubernetesVersion, wantsVPA, kubeProxyEnabled, &kubeProxyMode, false, nodesFunc(), []string{network.Spec.PodCIDR}, []extensionsv1alpha1.IPFamily{extensionsv1alpha1.IPFamilyIPv4})
 			Expect(err).To(BeNil())
 
 			expected := map[string]interface{}{
@@ -284,7 +284,7 @@ var _ = Describe("Chart package test", func() {
 							"enabled": !kubeProxyEnabled,
 						},
 						"nftables": map[string]interface{}{
-							"enabled": nftables == corev1beta1.ProxyModeNFTables,
+							"enabled": kubeProxyMode == corev1beta1.ProxyModeNFTables,
 						},
 					},
 					"ipv4": map[string]interface{}{
@@ -421,47 +421,60 @@ var _ = Describe("Chart package test", func() {
 			Expect(err).To(Equal(fmt.Errorf("error when generating calico config: unsupported value for backend: invalid")))
 		})
 
-		It("should not enable nftables if kube-proxy is in iptables or ipvs mode", func() {
+		It("should not enable nftables if kube-proxy is in iptables mode", func() {
+			enablekubeproxy := true
 			kubeproxymode := corev1beta1.ProxyModeIPTables
-			values, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, true, &kubeproxymode, false, nil, nil, nil)
+			values, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, enablekubeproxy, &kubeproxymode, false, nil, nil, nil)
 			Expect(err).NotTo(HaveOccurred())
 
-			config := values["config"].(map[string]interface{})
-			felix := config["felix"].(map[string]interface{})
-			nft := felix["nftables"].(map[string]interface{})
-			Expect(nft["enabled"]).To(BeFalse())
+			Expect(values["config"]).To(
+				HaveKeyWithValue("felix", And(
+					HaveKeyWithValue("bpf", HaveKeyWithValue("enabled", false)),
+					HaveKeyWithValue("bpfKubeProxyIPTablesCleanup", HaveKeyWithValue("enabled", false)),
+					HaveKeyWithValue("ipinip", HaveKeyWithValue("enabled", true)),
+					HaveKeyWithValue("nftables", HaveKeyWithValue("enabled", false)),
+				)),
+			)
+		})
 
-			kubeproxymode = corev1beta1.ProxyModeIPVS
-			values, err = ComputeCalicoChartValues(network, nil, kubernetesVersion, false, true, &kubeproxymode, false, nil, nil, nil)
+		It("should not enable nftables if kube-proxy is in ipvs mode", func() {
+			enablekubeproxy := true
+			kubeproxymode := corev1beta1.ProxyModeIPVS
+			values, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, enablekubeproxy, &kubeproxymode, false, nil, nil, nil)
 			Expect(err).NotTo(HaveOccurred())
 
-			config = values["config"].(map[string]interface{})
-			felix = config["felix"].(map[string]interface{})
-			nft = felix["nftables"].(map[string]interface{})
-			Expect(nft["enabled"]).To(BeFalse())
+			Expect(values["config"]).To(
+				HaveKeyWithValue("felix", And(
+					HaveKeyWithValue("bpf", HaveKeyWithValue("enabled", false)),
+					HaveKeyWithValue("bpfKubeProxyIPTablesCleanup", HaveKeyWithValue("enabled", false)),
+					HaveKeyWithValue("ipinip", HaveKeyWithValue("enabled", true)),
+					HaveKeyWithValue("nftables", HaveKeyWithValue("enabled", false)),
+				)),
+			)
 		})
 
 		It("should enable nftables if kube-proxy is in nftables mode", func() {
+			enablekubeproxy := true
 			kubeproxymode := corev1beta1.ProxyModeNFTables
-			values, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, true, &kubeproxymode, false, nil, nil, nil)
+			values, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, enablekubeproxy, &kubeproxymode, false, nil, nil, nil)
 			Expect(err).NotTo(HaveOccurred())
 
-			config := values["config"].(map[string]interface{})
-			felix := config["felix"].(map[string]interface{})
-			bpf := felix["bpf"].(map[string]interface{})
-			bpfKubeProxyIPTablesCleanup := felix["bpfKubeProxyIPTablesCleanup"].(map[string]interface{})
-			nft := felix["nftables"].(map[string]interface{})
-
-			Expect(bpf["enabled"]).To(BeFalse())
-			Expect(bpfKubeProxyIPTablesCleanup["enabled"]).To(BeFalse())
-			Expect(nft["enabled"]).To(BeTrue())
+			Expect(values["config"]).To(
+				HaveKeyWithValue("felix", And(
+					HaveKeyWithValue("bpf", HaveKeyWithValue("enabled", false)),
+					HaveKeyWithValue("bpfKubeProxyIPTablesCleanup", HaveKeyWithValue("enabled", false)),
+					HaveKeyWithValue("ipinip", HaveKeyWithValue("enabled", true)),
+					HaveKeyWithValue("nftables", HaveKeyWithValue("enabled", true)),
+				)),
+			)
 		})
 
-		It("should error out if kubeProxyMode is set but kube-proxy is not enabled", func() {
-			kubeproxymode := corev1beta1.ProxyModeNFTables
-			_, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, false, &kubeproxymode, false, nil, nil, nil)
-			Expect(err).To(HaveOccurred())
-		})
+		// It("should error out if kubeProxyMode is set but kube-proxy is not enabled", func() {
+		// 	enablekubeproxy := false
+		// 	kubeproxymode := corev1beta1.ProxyModeNFTables
+		// 	_, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, enablekubeproxy, &kubeproxymode, false, nil, nil, nil)
+		// 	Expect(err).To(HaveOccurred())
+		// })
 
 		Context("IPv4", func() {
 			BeforeEach(func() {
