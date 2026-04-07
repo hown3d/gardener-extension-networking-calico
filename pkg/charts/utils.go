@@ -304,11 +304,9 @@ func generateChartValues(network *extensionsv1alpha1.Network, config *calicov1al
 		)
 	}
 
-	if kubeProxyEnabled == true {
-		if kubeProxyMode != nil {
-			if *kubeProxyMode == v1beta1.ProxyModeNFTables {
-				c.Felix.NFTables.Enabled = true
-			}
+	if kubeProxyEnabled && kubeProxyMode != nil {
+		if *kubeProxyMode == v1beta1.ProxyModeNFTables {
+			c.Felix.NFTables.Enabled = true
 		}
 	}
 
