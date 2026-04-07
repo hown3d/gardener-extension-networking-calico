@@ -490,12 +490,12 @@ var _ = Describe("Chart package test", func() {
 			)
 		})
 
-		// It("should error out if kubeProxyMode is set but kube-proxy is not enabled", func() {
-		// 	enablekubeproxy := false
-		// 	kubeproxymode := corev1beta1.ProxyModeNFTables
-		// 	_, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, enablekubeproxy, &kubeproxymode, false, nil, nil, nil)
-		// 	Expect(err).To(HaveOccurred())
-		// })
+		It("should error out if kubeProxyMode is set but kube-proxy is not enabled", func() {
+			enablekubeproxy := false
+			kubeproxymode := corev1beta1.ProxyModeNFTables
+			_, err := ComputeCalicoChartValues(network, nil, kubernetesVersion, false, enablekubeproxy, &kubeproxymode, false, nil, nil, nil)
+			Expect(err).To(HaveOccurred())
+		})
 
 		Context("IPv4", func() {
 			BeforeEach(func() {
