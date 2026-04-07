@@ -42,10 +42,11 @@ type calicoConfig struct {
 }
 
 type felix struct {
-	IPInIP                      felixIPinIP                      `json:"ipinip"`
-	BPF                         felixBPF                         `json:"bpf"`
-	BPFKubeProxyIptablesCleanup felixBPFKubeProxyIptablesCleanup `json:"bpfKubeProxyIPTablesCleanup"`
-	NFTables                    felixNFTables                    `json:"nftables"`
+	IPInIP                      felixIPinIP                           `json:"ipinip"`
+	BPF                         felixBPF                              `json:"bpf"`
+	BPFKubeProxyIptablesCleanup felixBPFKubeProxyIptablesCleanup      `json:"bpfKubeProxyIPTablesCleanup"`
+	NFTables                    felixNFTables                         `json:"nftables"`
+	ServiceLoopPrevention       *calicov1alpha1.ServiceLoopPrevention `json:"serviceLoopPrevention,omitempty"`
 }
 
 type felixIPinIP struct {
@@ -326,6 +327,10 @@ func generateChartValues(network *extensionsv1alpha1.Network, config *calicov1al
 func mergeCalicoValuesWithConfig(c *calicoConfig, config *calicov1alpha1.NetworkConfig, isIPv4, isIPv6 bool) (*calicoConfig, error) {
 	if config == nil {
 		return c, nil
+	}
+
+	if config.ServiceLoopPrevention != nil {
+		c.Felix.ServiceLoopPrevention = config.ServiceLoopPrevention
 	}
 
 	c.IPv4.Wireguard = config.WireguardEncryption
