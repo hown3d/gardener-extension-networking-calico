@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 
+	corev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/chartrenderer"
 	mockchartrenderer "github.com/gardener/gardener/pkg/chartrenderer/mock"
@@ -22,8 +23,6 @@ import (
 	"github.com/gardener/gardener-extension-networking-calico/imagevector"
 	calicov1alpha1 "github.com/gardener/gardener-extension-networking-calico/pkg/apis/calico/v1alpha1"
 	"github.com/gardener/gardener-extension-networking-calico/pkg/calico"
-
-	corev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 )
 
 var (
@@ -375,7 +374,7 @@ var _ = Describe("Chart package test", func() {
 			func() *string { return &nodeCIDR }, map[string]string{"nodeCIDR": nodeCIDR}),
 		Entry("should correctly compute all of the calico chart values with serviceLoopPrevention",
 			networkConfigAllFelixFunc, networkConfigAllFelixFunc,
-			true, true, true, defaultMtu, true, false, string(poolVXlan), false, false, false,
+			true, true, true, defaultMtu, true, false, pointer(corev1beta1.ProxyModeIPTables), string(poolVXlan), false, false, false,
 			func() string { return string(*networkConfigAll.IPv4.Mode) }, func() *string { return networkConfigAll.IPv4.AutoDetectionMethod },
 			func() *string { return &nodeCIDR }, map[string]string{"nodeCIDR": nodeCIDR}),
 		Entry("should correctly compute all of the calico chart values with ebpf dataplane enabled and kube-proxy disabled",
@@ -626,7 +625,7 @@ var _ = Describe("Chart package test", func() {
 			It("should correctly configure for IPv6 networks", func() {
 				values, err := ComputeCalicoChartValues(
 					network,
-					nil, "", false, false, nil,false, nil, []string{"2001:0db8:85a3:0000::/56"}, []extensionsv1alpha1.IPFamily{extensionsv1alpha1.IPFamilyIPv6},
+					nil, "", false, false, nil, false, nil, []string{"2001:0db8:85a3:0000::/56"}, []extensionsv1alpha1.IPFamily{extensionsv1alpha1.IPFamilyIPv6},
 				)
 				Expect(err).NotTo(HaveOccurred())
 
