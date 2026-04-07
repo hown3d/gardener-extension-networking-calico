@@ -455,7 +455,6 @@ var _ = Describe("Chart package test", func() {
 				HaveKeyWithValue("felix", And(
 					HaveKeyWithValue("bpf", HaveKeyWithValue("enabled", false)),
 					HaveKeyWithValue("bpfKubeProxyIPTablesCleanup", HaveKeyWithValue("enabled", false)),
-					HaveKeyWithValue("ipinip", HaveKeyWithValue("enabled", true)),
 					HaveKeyWithValue("nftables", HaveKeyWithValue("enabled", false)),
 				)),
 			)
@@ -471,7 +470,6 @@ var _ = Describe("Chart package test", func() {
 				HaveKeyWithValue("felix", And(
 					HaveKeyWithValue("bpf", HaveKeyWithValue("enabled", false)),
 					HaveKeyWithValue("bpfKubeProxyIPTablesCleanup", HaveKeyWithValue("enabled", false)),
-					HaveKeyWithValue("ipinip", HaveKeyWithValue("enabled", true)),
 					HaveKeyWithValue("nftables", HaveKeyWithValue("enabled", false)),
 				)),
 			)
@@ -487,7 +485,6 @@ var _ = Describe("Chart package test", func() {
 				HaveKeyWithValue("felix", And(
 					HaveKeyWithValue("bpf", HaveKeyWithValue("enabled", false)),
 					HaveKeyWithValue("bpfKubeProxyIPTablesCleanup", HaveKeyWithValue("enabled", false)),
-					HaveKeyWithValue("ipinip", HaveKeyWithValue("enabled", true)),
 					HaveKeyWithValue("nftables", HaveKeyWithValue("enabled", true)),
 				)),
 			)
